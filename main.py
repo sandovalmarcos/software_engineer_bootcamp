@@ -5,6 +5,7 @@ from typing import Optional
 # Crear objeto app
 app = FastAPI()
 
+
 # Clase User, la cual hereda características de BaseModel
 class User(BaseModel):
 
@@ -17,7 +18,7 @@ class User(BaseModel):
         default=None,
 
     )
-    linked_posts: Optional[list[int]] = Field(
+    liked_posts: Optional[list[int]] = Field(
         description="Array of post ids the user linked",
         # min_items=2,
         # max_items=10
@@ -30,33 +31,30 @@ class FullUserProfile(User):
     long_bio: str
 
 
-def get_user_info(user_id: str = "default") -> FullUserProfile:
-    profile_infos = {
-        "default": {
-            "short_description": "My bio description",
-            "long_bio": "this is our longer bio"
-        },
-        "user_1": {
-            "short_description": "User 1's bio description",
-            "long_bio": "User 1's longer bio",
-        }
+class CreateUserResponse(BaseModel):
+    user_id: str
+
+
+profile_infos = {
+    0: {
+        "short_description": "My bio description",
+        "long_bio": "this is our longer bio"
     }
+}
+users_content = {
+    0: {
+        # "name": "ourusername",
+        "liked_posts": [1] * 9,
+    }
+}
+
+
+def get_user_info(user_id: int = 0) -> FullUserProfile:
 
     profile_info = profile_infos[user_id]
 
-    users_content = {
-        "default": {
-            # "name": "ourusername",
-            "link_posts": [1],
-
-            "profile_info": profile_info
-        },
-        "user_1": {
-            "linked_posts": [] * 9,
-            "profile_info": profile_info
-        }
-    }
     user_content = users_content[user_id]
+
     user = User(**user_content)
 
     full_user_profile = {
@@ -66,8 +64,28 @@ def get_user_info(user_id: str = "default") -> FullUserProfile:
     return FullUserProfile(**full_user_profile)
 
 
-def create_user(full_profile_info: FullUserProfile):
-    pass
+def create_user(full_profile_info: FullUserProfile) -> int:
+    global profile_infos
+    global users_content
+
+    new_user_id = len(profile_infos)
+    liked_posts = full_profile_info.liked_posts
+    short_description = full_profile_info.short_description
+    long_bio = full_profile_info.long_bio
+
+    print("before:")
+    print("user_content: ", users_content)
+    print("profile_info: ", profile_infos)
+
+    users_content[new_user_id] = {"liked_posts": liked_posts}
+    profile_infos[new_user_id] = {
+        "short_description": short_description,
+        "long_bio": long_bio,
+    }
+    print("after:")
+    print("user_content: ", users_content)
+    print("profile_info: ", profile_infos)
+    return new_user_id
 
 
 @app.get("/user/me", response_model=FullUserProfile)
@@ -79,8 +97,15 @@ def test_endpoint():
 
 
 @app.get("/user/{user_id}", response_model=FullUserProfile)
-def get_user_by_id(user_id: str, company_id: int):
+def get_user_by_id(user_id: int):
     # print("received user_id: ", user_id, "company_id :", company_id)
     full_user_profile = get_user_info(user_id)
 
     return full_user_profile
+
+
+@app.post("/users", response_model=CreateUserResponse)
+def add_user(full_profile_info: FullUserProfile):
+    user_id = create_user(full_profile_info)
+    created_user = CreateUserResponse(user_id=user_id)
+    return created_user
